@@ -3,11 +3,11 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
-	"os/signal"
 
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
+
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -30,24 +30,50 @@ func main() {
 	fmt.Println("Starting Peril server...")
 	fmt.Println("Connected to RabbitMQ successfully!")
 
-	err = pubsub.PublishJSON(
-		ch,
-		routing.ExchangePerilDirect,
-		routing.PauseKey,
-		routing.PlayingState{
-			IsPaused: true,
-		},
-	)
-	if err != nil {
-		log.Fatalf("Failed to publish message: %v", err)
-		return
+	gamelogic.PrintServerHelp()
+
+	// Main loop to read console input and publish messages
+	for {
+		consoleInput := gamelogic.GetInput()
+
+		if len(consoleInput) == 0 {
+			continue
+		}
+
+		userInput := consoleInput[0]
+
+		switch userInput {
+			case "pause":
+				fmt.Println("Pausing game...")
+				err = pubsub.PublishJSON(
+					ch,
+					routing.ExchangePerilDirect,
+					routing.PauseKey,
+					routing.PlayingState{
+						IsPaused: true,
+					},
+				)
+				if err != nil {
+					log.Printf("Failed to publish pause message: %v", err)
+				}
+			case "resume":
+				fmt.Println("Resuming game...")
+				err = pubsub.PublishJSON(
+					ch,
+					routing.ExchangePerilDirect,
+					routing.PauseKey,
+					routing.PlayingState{
+						IsPaused: false,
+					},
+				)
+				if err != nil {
+					log.Printf("Failed to publish resume message: %v", err)
+				}
+			case "quit":
+				fmt.Println("Exiting game...")
+				return
+			default:
+				fmt.Printf("Unknown command: %s\n", userInput)
+		}
 	}
-
-
-	// use signal to wait for termination
-	// after user presses Ctrl+C, print a message and exit
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt)
-	<-sigChan
-	fmt.Println("Shutting down Peril server...")
 }
