@@ -4,9 +4,6 @@ import (
 	"fmt"
 
 	"log"
-	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -42,10 +39,47 @@ func main() {
 
 	defer ch.Close()
 
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	gameState := gamelogic.NewGameState(username)
 
-	fmt.Println("Client running. Press Ctrl+C to exit.")
-	<-sigCh
-	fmt.Println("Shutting down Peril client...")
+	for {
+		consoleInput := gamelogic.GetInput()
+
+		if len(consoleInput) == 0 {
+			continue
+		}
+
+		userInput := consoleInput[0]
+
+		switch userInput {
+			case "spawn":
+				err = gameState.CommandSpawn(consoleInput)
+				if err != nil {
+					fmt.Println(err)
+				}
+				continue
+			case "move":
+				message, err := gameState.CommandMove(consoleInput)
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
+				fmt.Println(message)
+				continue
+			case "status":
+				gameState.CommandStatus()
+				continue
+			case "help":
+				gamelogic.PrintClientHelp()
+				continue
+			case "spam":
+				fmt.Println("Spamming not allowed yet!")
+				continue
+			case "quit":
+				gamelogic.PrintQuit()
+				return
+			default:
+				fmt.Printf("Unknown command: %s\n", userInput)
+				continue
+		}
+	}
 }
