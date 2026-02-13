@@ -19,14 +19,28 @@ func main() {
 		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
 		return
 	}
+	defer conn.Close()
+
 	ch, err := conn.Channel()
 	if err != nil {
 		log.Fatalf("Failed to open a channel: %v", err)
 		return
 	}
-
 	defer ch.Close()
-	defer conn.Close()
+
+	queueChan, _, err := pubsub.DeclareAndBind(
+		conn,
+		routing.ExchangePerilTopic,
+		routing.GameLogSlug,
+		routing.GameLogSlug + ".*",
+		pubsub.SimpleQueueDurable,
+	)
+	if err != nil {
+		log.Fatalf("Failed to declare and bind queue: %v", err)
+		return
+	}
+	defer queueChan.Close()
+
 	fmt.Println("Starting Peril server...")
 	fmt.Println("Connected to RabbitMQ successfully!")
 
