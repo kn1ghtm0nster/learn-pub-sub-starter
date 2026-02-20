@@ -3,7 +3,7 @@ package pubsub
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"log"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -33,7 +33,7 @@ func SubscribeJSON[T any](
 	queueName,
 	key string,
 	queueType SimpleQueueType,
-	handler func(T),
+	handler func(T) AckType,
 ) error {
 	ch, queue, err := DeclareAndBind(
 		conn,
@@ -64,14 +64,33 @@ func SubscribeJSON[T any](
 			var rawBytes T
 			if err := json.Unmarshal(d.Body, &rawBytes); err != nil {
 				if err := d.Ack(false); err != nil {
-					fmt.Println("Failed to ack message:", err)
+					log.Fatalf("Failed to ack message after unmarshal error: %v", err)
+					return
 				}
 				continue
 			}
 
-			handler(rawBytes)
-			if err := d.Ack(false); err != nil {
-				fmt.Println("Failed to ack message:", err)
+			ackValue := handler(rawBytes)
+			
+			switch ackValue {
+				case Ack:
+					if err := d.Ack(false); err != nil {
+						log.Fatalf("Failed to ack message: %v", err)
+						return
+					}
+					log.Printf("Message processed and acknowledged: %s", d.Body)
+				case NackRequeue:
+					if err := d.Nack(false, true); err != nil {
+						log.Fatalf("Failed to nack and requeue message: %v", err)
+						return
+					}
+					log.Printf("Message processing failed, message requeued: %s", d.Body)
+				case NackDiscard:
+					if err := d.Nack(false, false); err != nil {
+						log.Fatalf("Failed to nack and discard message: %v", err)
+						return
+					}
+					log.Printf("Message processing failed, message discarded: %s", d.Body)
 			}
 		}
 	}()
