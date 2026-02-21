@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -41,6 +42,9 @@ func SubscribeJSON[T any](
 		queueName,
 		key,
 		queueType,
+		amqp.Table{
+			"x-dead-letter-exchange": routing.ExchangeDeadLetter,
+		},
 	)
 	if err != nil {
 		return err
@@ -104,6 +108,7 @@ func DeclareAndBind(
 	queueName,
 	key string,
 	queueType SimpleQueueType,
+	table amqp.Table,
 ) (*amqp.Channel, amqp.Queue, error) {
 	ch, err := conn.Channel()
 	if err != nil {
@@ -130,7 +135,7 @@ func DeclareAndBind(
 		autoDelete,
 		exclusive,
 		noWait,
-		nil,
+		table,
 	)
 	if err != nil {
 		return nil, amqp.Queue{}, err

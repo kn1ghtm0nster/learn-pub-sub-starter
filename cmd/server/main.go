@@ -34,6 +34,9 @@ func main() {
 		routing.GameLogSlug,
 		routing.GameLogSlug + ".*",
 		pubsub.SimpleQueueDurable,
+		amqp.Table{
+			"x-dead-letter-exchange": routing.ExchangeDeadLetter,
+		},
 	)
 	if err != nil {
 		log.Fatalf("Failed to declare and bind queue: %v", err)
