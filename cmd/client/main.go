@@ -46,7 +46,7 @@ func main() {
 		moveQueueName,
 		fmt.Sprintf("%s.*", routing.ArmyMovesPrefix),
 		pubsub.SimpleQueueTransient,
-		handlerMove(gameState),
+		handlerMove(gameState, publishCh),
 	)
 	if err != nil {
 		log.Fatalf("Failed to subscribe to move messages: %v", err)
@@ -63,6 +63,21 @@ func main() {
 	)
 	if err != nil {
 		log.Fatalf("Failed to subscribe to pause messages: %v", err)
+		return
+	}
+
+	warKey := fmt.Sprintf("%s.*", routing.WarRecognitionsPrefix)
+
+	err = pubsub.SubscribeJSON(
+		conn,
+		routing.ExchangePerilTopic,
+		"war",
+		warKey,
+		pubsub.SimpleQueueDurable,
+		handlerWarMessages(gameState),
+	)
+	if err != nil {
+		log.Fatalf("Failed to subscribe to war recognition messages: %v", err)
 		return
 	}
 
