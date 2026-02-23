@@ -44,9 +44,10 @@ func handlerMove(gs *gamelogic.GameState, ch *amqp.Channel) func(gamelogic.ArmyM
 					publishData,
 				)
 				if err != nil {
-					log.Fatalf("Error publishing data: %v", err)
+					log.Printf("Error publishing data: %v", err)
+					return pubsub.NackRequeue
 				}
-				return pubsub.NackRequeue
+				return pubsub.Ack
 			default:
 				return pubsub.NackDiscard
 		}
