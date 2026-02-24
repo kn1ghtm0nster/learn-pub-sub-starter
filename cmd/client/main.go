@@ -74,7 +74,7 @@ func main() {
 		"war",
 		warKey,
 		pubsub.SimpleQueueDurable,
-		handlerWarMessages(gameState),
+		handlerWarMessages(gameState, publishCh),
 	)
 	if err != nil {
 		log.Fatalf("Failed to subscribe to war recognition messages: %v", err)

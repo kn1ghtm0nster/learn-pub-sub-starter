@@ -54,24 +54,45 @@ func handlerMove(gs *gamelogic.GameState, ch *amqp.Channel) func(gamelogic.ArmyM
 	}
 }
 
-func handlerWarMessages(gs *gamelogic.GameState) func(gamelogic.RecognitionOfWar) pubsub.AckType {
+func handlerWarMessages(gs *gamelogic.GameState, ch *amqp.Channel) func(gamelogic.RecognitionOfWar) pubsub.AckType {
 	return func (rw gamelogic.RecognitionOfWar) pubsub.AckType {
 		defer fmt.Print("> ")
-		outcome, _, _ := gs.HandleWar(rw)
+		outcome, winner, loser := gs.HandleWar(rw)
+		username := gs.GetUsername()
+		routingKey := fmt.Sprintf("%s.%s", routing.GameLogSlug, username)
+
 		switch outcome {
-		case gamelogic.WarOutcomeNotInvolved:
-			return pubsub.NackRequeue
-		case gamelogic.WarOutcomeNoUnits:
-			return pubsub.NackDiscard
-		case gamelogic.WarOutcomeOpponentWon:
-			return pubsub.Ack
-		case gamelogic.WarOutcomeYouWon:
-			return pubsub.Ack
-		case gamelogic.WarOutcomeDraw:
-			return pubsub.Ack
-		default:
-			fmt.Printf("Unknown war outcome: %v\n", outcome)
-			return pubsub.NackDiscard
+			case gamelogic.WarOutcomeNotInvolved:
+				return pubsub.NackRequeue
+			case gamelogic.WarOutcomeNoUnits:
+				return pubsub.NackDiscard
+			case gamelogic.WarOutcomeOpponentWon:
+				message := fmt.Sprintf("%s won a war against %s", winner, loser)
+				err := CreateGameLog(ch, routing.ExchangePerilTopic, routingKey, message, username)
+				if err != nil {
+					log.Printf("Error publishing data: %v", err)
+					return pubsub.NackRequeue
+				}
+				return pubsub.Ack
+			case gamelogic.WarOutcomeYouWon:
+				message := fmt.Sprintf("%s won a war against %s", winner, loser)
+				err := CreateGameLog(ch, routing.ExchangePerilTopic, routingKey, message, username)
+				if err != nil {
+					log.Printf("Error publishing data: %v", err)
+					return pubsub.NackRequeue
+				}
+				return pubsub.Ack
+			case gamelogic.WarOutcomeDraw:
+				message := fmt.Sprintf("A war between %s and %s resulted in a draw", winner, loser)
+				err := CreateGameLog(ch, routing.ExchangePerilTopic, routingKey, message, username)
+				if err != nil {
+					log.Printf("Error publishing data: %v", err)
+					return pubsub.NackRequeue
+				}
+				return pubsub.Ack
+			default:
+				fmt.Printf("Unknown war outcome: %v\n", outcome)
+				return pubsub.NackDiscard
 		}
 	}
 }
