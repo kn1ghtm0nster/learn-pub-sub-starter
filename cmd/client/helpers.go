@@ -25,3 +25,18 @@ func CreateGameLog(ch *amqp.Channel, exchange, routingKey, message, username str
 		gameLog,
 	)
 }
+
+
+// NOTE: This is a helper function for DEBUGGING ONLY
+func publishGameLog(publishCh *amqp.Channel, username, msg string) error {
+	return pubsub.PublishGob(
+		publishCh,
+		routing.ExchangePerilTopic,
+		routing.GameLogSlug+"."+username,
+		routing.GameLog{
+			Username:    username,
+			CurrentTime: time.Now(),
+			Message:     msg,
+		},
+	)
+}

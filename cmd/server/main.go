@@ -28,21 +28,18 @@ func main() {
 	}
 	defer ch.Close()
 
-	queueChan, _, err := pubsub.DeclareAndBind(
+	err = pubsub.SubscribeGob(
 		conn,
 		routing.ExchangePerilTopic,
 		routing.GameLogSlug,
 		routing.GameLogSlug + ".*",
 		pubsub.SimpleQueueDurable,
-		amqp.Table{
-			"x-dead-letter-exchange": routing.ExchangeDeadLetter,
-		},
+		handleGameLogMessage,
 	)
 	if err != nil {
-		log.Fatalf("Failed to declare and bind queue: %v", err)
+		log.Fatalf("Failed to subscribe to game log messages: %v", err)
 		return
 	}
-	defer queueChan.Close()
 
 	fmt.Println("Starting Peril server...")
 	fmt.Println("Connected to RabbitMQ successfully!")

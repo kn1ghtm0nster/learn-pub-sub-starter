@@ -5,9 +5,7 @@ import (
 	"context"
 	"encoding/gob"
 	"encoding/json"
-	"log"
 
-	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -58,70 +56,45 @@ func SubscribeJSON[T any](
 	queueType SimpleQueueType,
 	handler func(T) AckType,
 ) error {
-	ch, queue, err := DeclareAndBind(
+	return subscribe(
 		conn,
 		exchange,
 		queueName,
 		key,
 		queueType,
-		amqp.Table{
-			"x-dead-letter-exchange": routing.ExchangeDeadLetter,
+		handler,
+		func (data []byte) (T, error) {
+			var target T
+			err := json.Unmarshal(data, &target)
+			return target, err
 		},
 	)
-	if err != nil {
-		return err
-	}
+}
 
-	deliveryCh, err := ch.Consume(
-		queue.Name,
-		"",
-		false,
-		false,
-		false,
-		false,
-		nil,
+func SubscribeGob[T any](
+	conn *amqp.Connection,
+	exchange,
+	queueName,
+	key string,
+	queueType SimpleQueueType,
+	handler func(T) AckType,
+) error {
+
+	return subscribe(
+		conn,
+		exchange,
+		queueName,
+		key,
+		queueType,
+		handler,
+		func (data []byte) (T, error) {
+			var target T
+			dataBuffer := bytes.NewBuffer(data)
+			decoder := gob.NewDecoder(dataBuffer)
+			err := decoder.Decode(&target)
+			return target, err
+		},
 	)
-	if err != nil {
-		return err
-	}
-
-	go func() {
-		for d := range deliveryCh {
-			var rawBytes T
-			if err := json.Unmarshal(d.Body, &rawBytes); err != nil {
-				if err := d.Ack(false); err != nil {
-					log.Fatalf("Failed to ack message after unmarshal error: %v", err)
-					return
-				}
-				continue
-			}
-
-			ackValue := handler(rawBytes)
-			
-			switch ackValue {
-				case Ack:
-					if err := d.Ack(false); err != nil {
-						log.Fatalf("Failed to ack message: %v", err)
-						return
-					}
-					log.Printf("Message processed and acknowledged: %s", d.Body)
-				case NackRequeue:
-					if err := d.Nack(false, true); err != nil {
-						log.Fatalf("Failed to nack and requeue message: %v", err)
-						return
-					}
-					log.Printf("Message processing failed, message requeued: %s", d.Body)
-				case NackDiscard:
-					if err := d.Nack(false, false); err != nil {
-						log.Fatalf("Failed to nack and discard message: %v", err)
-						return
-					}
-					log.Printf("Message processing failed, message discarded: %s", d.Body)
-			}
-		}
-	}()
-
-	return nil
 }
 
 func DeclareAndBind(
