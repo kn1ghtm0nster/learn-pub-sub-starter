@@ -27,8 +27,8 @@ func CreateGameLog(ch *amqp.Channel, exchange, routingKey, message, username str
 }
 
 
-// NOTE: This is a helper function for DEBUGGING ONLY
-func publishGameLog(publishCh *amqp.Channel, username, msg string) error {
+// NOTE: This is a helper function for DEBUGGING AND TESTING ONLY
+func SpamGameLog(publishCh *amqp.Channel, username, msg string) error {
 	return pubsub.PublishGob(
 		publishCh,
 		routing.ExchangePerilTopic,

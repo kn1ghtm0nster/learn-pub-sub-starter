@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 
 	"log"
 
@@ -122,8 +123,23 @@ func main() {
 				gamelogic.PrintClientHelp()
 				continue
 			case "spam":
-				fmt.Println("Spamming not allowed yet!")
-				continue
+				if len(consoleInput) == 1 {
+					continue
+				}
+				spamMessageCount := consoleInput[1]
+				num, err := strconv.Atoi(spamMessageCount)
+				if err != nil {
+					fmt.Println("Invalid number for spam command:", err)
+					continue
+				}
+				for range num {
+					logMessage := gamelogic.GetMaliciousLog()
+					err = SpamGameLog(publishCh, username, logMessage)
+					if err != nil {
+						fmt.Println("Failed to publish game log message:", err)
+						continue
+					}
+				}
 			case "quit":
 				gamelogic.PrintQuit()
 				return
