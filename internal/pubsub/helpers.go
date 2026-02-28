@@ -31,6 +31,13 @@ func subscribe[T any](
 		return err
 	}
 
+	// Set QoS to prefetch 10 messages at a time
+	err  = ch.Qos(10, 0, false)
+	if err != nil {
+		log.Printf("Failed to set QoS: %v", err)
+		return err
+	}
+
 	deliveryCh, err := ch.Consume(
 		queue.Name,
 		"",
